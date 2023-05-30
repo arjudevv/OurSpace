@@ -1,0 +1,39 @@
+  {
+  "project_info": {
+    "project_number": "1019102642623",
+    "project_id": "our-space-2d562",
+    "storage_bucket": "our-space-2d562.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1019102642623:android:ab5be135553904b8f1e10a",
+        "android_client_info": {
+          "package_name": "com.example.ourspace"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1019102642623-5gb91ueltqrqu4de84m5nc6g3nd4cqvc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAw-YtrT-i1CutkW7qOqh7gYB_V0e501po"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1019102642623-5gb91ueltqrqu4de84m5nc6g3nd4cqvc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
