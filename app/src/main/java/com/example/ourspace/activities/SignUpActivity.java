@@ -25,15 +25,29 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HashMap;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 public class SignUpActivity extends AppCompatActivity {
 
     private ActivitySignUpBinding binding;
     private PreferenceManager preferenceManager;
     private String encodedImage;
-
     private FirebaseAuth firebaseAuth;
+    KeyGenerator keyGenerator;
+    SecretKey secretKey;
+    byte[] IV = new byte[16];
+    SecureRandom random;
+    String strSecretKey;
+    byte [] enSecretKey;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +57,31 @@ public class SignUpActivity extends AppCompatActivity {
         preferenceManager = new PreferenceManager(getApplicationContext());
         firebaseAuth = FirebaseAuth.getInstance();
         setListeners();
+        encryptData();
+    }
+
+    private void encryptData() {
+        try {
+            keyGenerator = KeyGenerator.getInstance("AES");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        keyGenerator.init(256);
+        secretKey = keyGenerator.generateKey();
+        enSecretKey = secretKey.getEncoded();
+        strSecretKey = encoderfun(enSecretKey);
+
+        random = new SecureRandom();
+        random.nextBytes(IV);
+    }
+
+    public static byte[] encrypt(byte[] plaintext, SecretKey key, byte[] IV) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        SecretKeySpec keySpec = new SecretKeySpec(key.getEncoded(), "AES");
+        IvParameterSpec ivSpec = new IvParameterSpec(IV);
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
+        byte[] cipherText = cipher.doFinal(plaintext);
+        return cipherText;
     }
 
     private void setListeners() {
@@ -63,14 +102,28 @@ public class SignUpActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
+    public static String encoderfun(byte[] decval) {
+        String conVal= Base64.encodeToString(decval,Base64.DEFAULT);
+        return conVal;
+    }
+
     private void signUp() {
+        byte[] cipherPass;
         loading(true);
         createUser();
         FirebaseFirestore database = FirebaseFirestore.getInstance();
         HashMap<String, Object> user = new HashMap<>();
         user.put(Constants.KEY_NAME, binding.inputName.getText().toString());
         user.put(Constants.KEY_EMAIL, binding.inputEmail.getText().toString());
-        user.put(Constants.KEY_PASSWORD, binding.inputPassword.getText().toString());
+        try {
+            cipherPass = encrypt(binding.inputPassword.getText().toString().trim().getBytes(), secretKey, IV);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        String encryptedPass = encoderfun(cipherPass);
+        String strIV = encoderfun(IV);
+        user.put("IV", strIV);
+        user.put(Constants.KEY_PASSWORD, encryptedPass);
         user.put(Constants.KEY_IMAGE, encodedImage);
         database.collection(Constants.KEY_COLLECTION_USERS)
                 .add(user)
@@ -80,9 +133,7 @@ public class SignUpActivity extends AppCompatActivity {
                     preferenceManager.putString(Constants.KEY_USER_ID, documentReference.getId());
                     preferenceManager.putString(Constants.KEY_NAME, binding.inputName.getText().toString());
                     preferenceManager.putString(Constants.KEY_IMAGE, encodedImage);
-//                    Intent intent = new Intent(getApplicationContext(),MainActivity.class);
-//                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-//                    startActivity(intent);
+                    preferenceManager.putString("secretKey", strSecretKey);
                 })
                 .addOnFailureListener(exception -> {
                     loading(false);
@@ -148,14 +199,11 @@ public class SignUpActivity extends AppCompatActivity {
     }
 
     private void createUser() {
-        firebaseAuth.createUserWithEmailAndPassword(binding.inputEmail.getText().toString(),binding.inputPassword.getText().toString()).addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                sendEmailVerification();
-//                signUp();
-            } else {
-                showToast("SignUp failed");
-            }
-        });
+        firebaseAuth.createUserWithEmailAndPassword(binding.inputEmail.getText().toString(),binding.inputConfirmPassword.getText().toString()).addOnSuccessListener(authResult ->
+                sendEmailVerification()
+        ).addOnFailureListener(e ->
+                showToast("SignUp failed...")
+        );
     }
 
     private void sendEmailVerification() {
